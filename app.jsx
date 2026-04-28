@@ -1,7 +1,8 @@
 /* global React, ReactDOM */
 const { useState, useEffect, useMemo, useRef } = React;
 
-const QUESTIONS_BANK = window.QUESTIONS_BANK;
+// Read these dynamically — window.QUESTIONS_BANK is replaced after questions.json
+// loads, so don't snapshot at module load.
 const AVATARS = window.AVATARS;
 const LEADERBOARD_SEED = window.LEADERBOARD_SEED;
 
@@ -14,8 +15,9 @@ const shuffle = (arr) => {
   return a;
 };
 
-const buildQuizPool = (count = 8) =>
-  shuffle(QUESTIONS_BANK).slice(0, count).map((q) => {
+const buildQuizPool = (count = 8) => {
+  const bank = window.QUESTIONS_BANK || [];
+  return shuffle(bank).slice(0, count).map((q) => {
     const idxs = shuffle([0, 1, 2, 3]);
     return {
       category: q.category,
@@ -24,6 +26,7 @@ const buildQuizPool = (count = 8) =>
       correct: idxs.indexOf(q.correct),
     };
   });
+};
 
 // ===== خلفية زخرفية =====
 function BgDecor() {
@@ -876,10 +879,17 @@ function App() {
   const [tweaks, setTweak] = window.useTweaks({ theme: "light" });
   const [route, setRoute] = useState({ name: "home" });
   const [hi, setHi] = useState(() => Number(localStorage.getItem("trivia_hi") || 0));
+  const [questionCount, setQuestionCount] = useState((window.QUESTIONS_BANK || []).length);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", tweaks.theme);
   }, [tweaks.theme]);
+
+  useEffect(() => {
+    if (typeof window.loadQuestions === "function") {
+      window.loadQuestions().then((n) => setQuestionCount(n));
+    }
+  }, []);
 
   function pickMode(mode) {
     if (mode === "sp") setRoute({ name: "sp" });
