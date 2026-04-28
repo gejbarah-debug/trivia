@@ -79,7 +79,7 @@ function HomeMenu({ onPick, hi }) {
           <span className="word w2">المعلومات</span>
         </h1>
         <p className="home-subtitle">
-          العب بمفردك أو تحدَّ أصدقاءك في غرفة مباشرة. ٨ أسئلة، ٣٠ ثانية، نقاط حسب السرعة.
+          العب بمفردك أو تحدَّ أصدقاءك في غرفة مباشرة. ٨ أسئلة، ١٥ ثانية، نقاط حسب السرعة.
         </p>
       </div>
 
@@ -230,7 +230,7 @@ function QuestionScreen({ player, qIndex, total, question, score, lives, streak,
       </div>
 
       <div className="question-card">
-        <TimerRing remaining={timer} total={30} />
+        <TimerRing remaining={timer} total={15} />
         <div className="q-meta" style={{ marginTop: 8, paddingRight: 96 }}>
           <span className="cat-tag">📚 {question.category}</span>
           <span className="q-num">سؤال {qIndex + 1} / {total}</span>
@@ -390,7 +390,7 @@ function SinglePlayerGame({ onExit, hi, setHi }) {
   const [lives, setLives] = useState(3);
   const [streak, setStreak] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(15);
   const [locked, setLocked] = useState(false);
   const [lastPick, setLastPick] = useState(null);
   const [lastResult, setLastResult] = useState(null);
@@ -405,7 +405,7 @@ function SinglePlayerGame({ onExit, hi, setHi }) {
   function startGame() {
     setQuestions(buildQuizPool(8));
     setQIndex(0); setScore(0); setLives(3); setStreak(0); setCorrectCount(0);
-    setTimer(30); setLocked(false); setLastPick(null);
+    setTimer(15); setLocked(false); setLastPick(null);
     setScreen("quiz");
   }
 
@@ -440,7 +440,7 @@ function SinglePlayerGame({ onExit, hi, setHi }) {
       setScreen("end");
     } else {
       setQIndex((i) => i + 1);
-      setTimer(30); setLocked(false); setLastPick(null);
+      setTimer(15); setLocked(false); setLastPick(null);
       setScreen("quiz");
     }
   }
@@ -707,7 +707,7 @@ function MPGame({ room, code, playerId, onLeave }) {
       <MPLiveBoard players={players} myId={playerId} />
 
       <div className="question-card">
-        <TimerRing remaining={timer} total={30} />
+        <TimerRing remaining={timer} total={15} />
         <div className="q-meta" style={{ marginTop: 8, paddingRight: 96 }}>
           <span className="cat-tag">📚 {question.category}</span>
           <span className="q-num">سؤال {qIndex + 1} / {total}</span>

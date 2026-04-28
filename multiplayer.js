@@ -3,7 +3,7 @@
 (function () {
   const db = window.FB_DB;
   const ROOM_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // exclude confusable chars
-  const QUESTION_DURATION_MS = 30_000;
+  const QUESTION_DURATION_MS = 15_000;
   const RESULT_DURATION_MS = 6_000;
   const ROUND_DURATION_MS = QUESTION_DURATION_MS + RESULT_DURATION_MS;
   const TOTAL_QUESTIONS = 8;
