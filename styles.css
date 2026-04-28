@@ -620,6 +620,134 @@ button { font-family: inherit; cursor: pointer; }
 .lb-streak { font-size: 13px; font-weight: 700; color: var(--c-orange); }
 .lb-score { font-family: 'Cairo'; font-weight: 900; font-size: 18px; color: var(--c-purple); }
 
+/* ===== Mode picker (home menu) ===== */
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) { .mode-grid { grid-template-columns: 1fr; } }
+
+.mode-btn {
+  background: var(--c-bg);
+  border: var(--border-thick);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 22px 18px;
+  text-align: center;
+  display: grid; gap: 6px; justify-items: center;
+  transition: transform 0.12s, box-shadow 0.12s;
+  font-family: inherit;
+  color: var(--c-ink);
+}
+.mode-btn:hover { transform: translate(-3px,-3px); box-shadow: var(--shadow-lg); }
+.mode-btn:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+.mode-btn .mode-icon { font-size: 44px; line-height: 1; margin-bottom: 4px; }
+.mode-btn .mode-title { font-family: 'Cairo'; font-weight: 900; font-size: 20px; }
+.mode-btn .mode-desc { font-size: 13px; font-weight: 600; color: var(--c-ink-soft); }
+.mode-btn.mode-sp { background: var(--c-yellow); }
+.mode-btn.mode-create { background: var(--c-pink); color: white; }
+.mode-btn.mode-create .mode-desc { color: rgba(255,255,255,0.85); }
+.mode-btn.mode-join { background: var(--c-teal); }
+
+/* ===== Code input (room code) ===== */
+.code-input {
+  text-align: center;
+  font-family: 'Cairo', sans-serif !important;
+  font-size: 36px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ===== Error message ===== */
+.error-msg {
+  margin-top: 16px;
+  background: var(--c-red);
+  color: white;
+  border: var(--border-thick);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== Lobby ===== */
+.lobby-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.lobby-player {
+  background: var(--c-bg-2);
+  border: var(--border-thick);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: var(--shadow-sm);
+}
+.lobby-player.is-self { background: var(--c-yellow); }
+.lobby-av {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--c-bg); border: 3px solid var(--c-ink);
+  display: grid; place-items: center; font-size: 22px;
+  flex-shrink: 0;
+}
+.lobby-info { display: grid; gap: 2px; min-width: 0; }
+.lobby-name { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lobby-host { font-size: 11px; font-weight: 700; color: var(--c-orange); }
+.lobby-waiting {
+  margin-top: 16px;
+  background: var(--c-bg-2);
+  border: var(--border-thick); border-radius: 16px;
+  padding: 16px; text-align: center;
+  font-weight: 700; color: var(--c-ink-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ===== Live scoreboard during MP game ===== */
+.mp-board {
+  background: var(--c-bg);
+  border: var(--border-thick);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 8px;
+  display: grid; gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.mp-board-row {
+  display: grid;
+  grid-template-columns: 36px 36px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--c-bg-2);
+  border: 2px solid var(--c-ink);
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+.mp-board-row.is-self { background: var(--c-yellow); border-width: 3px; }
+.mp-board-rank { font-family: 'Cairo'; font-weight: 900; font-size: 15px; color: var(--c-ink-soft); text-align: center; }
+.mp-board-av {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--c-bg); border: 2px solid var(--c-ink);
+  display: grid; place-items: center; font-size: 18px;
+}
+.mp-board-name { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-board-score { font-family: 'Cairo'; font-weight: 900; font-size: 16px; color: var(--c-purple); }
+
+/* MP result banner under question */
+.mp-result-banner {
+  background: var(--c-bg-2);
+  border: var(--border-thick); border-radius: 16px;
+  padding: 14px 16px;
+  font-family: 'Cairo'; font-weight: 900;
+  font-size: 18px; text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
 /* ===== confetti ===== */
 .confetti-piece {
   position: fixed; top: -20px;
