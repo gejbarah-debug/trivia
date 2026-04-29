@@ -20,9 +20,21 @@ window.TRIVIA_WORKER_URL = "";
   window.FB_DB = firebase.database();
 
   // Track server-time offset so all clients agree on `serverNow()` for the timer.
+  // We expose a Promise that resolves the first time Firebase reports an offset,
+  // so the game can wait for clock sync before starting the per-question timer.
   let serverTimeOffset = 0;
+  let isReady = false;
+  let resolveReady;
+  window.serverTimeReady = new Promise((res) => { resolveReady = res; });
+  window.isServerTimeReady = () => isReady;
+
   window.FB_DB.ref(".info/serverTimeOffset").on("value", (snap) => {
     serverTimeOffset = snap.val() || 0;
+    if (!isReady) {
+      isReady = true;
+      resolveReady(serverTimeOffset);
+    }
   });
+
   window.serverNow = () => Date.now() + serverTimeOffset;
 })();

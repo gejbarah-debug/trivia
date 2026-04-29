@@ -739,11 +739,34 @@ function MPGame({ room, code, playerId, onLeave }) {
   const Q_DUR = window.MP.QUESTION_DURATION_MS;
   const ROUND = window.MP.ROUND_DURATION_MS;
 
+  // Block rendering until Firebase reports the server-time offset so every
+  // client computes `elapsed` against the same clock — otherwise a player
+  // whose offset hasn't loaded yet would see a timer value drifted by their
+  // local clock skew.
+  const [synced, setSynced] = useState(() => window.isServerTimeReady?.() === true);
+  useEffect(() => {
+    if (synced) return;
+    let cancelled = false;
+    window.serverTimeReady?.then(() => { if (!cancelled) setSynced(true); });
+    return () => { cancelled = true; };
+  }, [synced]);
+
   const [now, setNow] = useState(window.serverNow());
   useEffect(() => {
+    if (!synced) return;
     const t = setInterval(() => setNow(window.serverNow()), 250);
     return () => clearInterval(t);
-  }, []);
+  }, [synced]);
+
+  if (!synced || !startedAt) {
+    return (
+      <div className="home">
+        <div className="home-hero">
+          <h2 className="home-title" style={{ fontSize: "clamp(28px,5vw,44px)" }}>جارٍ مزامنة المؤقّت...</h2>
+        </div>
+      </div>
+    );
+  }
 
   const elapsed = startedAt ? Math.max(0, now - startedAt) : 0;
   const qIndex = Math.floor(elapsed / ROUND);
