@@ -150,7 +150,7 @@ function TopBar({ theme, onToggleTheme, screen, onHome }) {
 }
 
 // ===== HomeMenu (mode picker) =====
-function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal, onGenerate, generating, generateError }) {
+function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal, onGenerate, generating, generateError, country }) {
   // Re-compute remaining whenever totalQuestions or seenSignal changes.
   const remaining = useMemo(() => {
     const bank = window.QUESTIONS_BANK || [];
@@ -204,6 +204,12 @@ function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal, onGener
       </div>
       {generateError && (
         <div className="error-msg" style={{ maxWidth: 520, margin: "0 auto" }}>{generateError}</div>
+      )}
+
+      {country && (
+        <div style={{ textAlign: "center", color: "var(--c-ink-soft)", fontWeight: 700, fontSize: 13 }}>
+          📍 موقعك: <span style={{ fontSize: 18 }}>{country.flag}</span> {country.name}
+        </div>
       )}
 
       {hi > 0 && (
@@ -600,7 +606,7 @@ function SinglePlayerGame({ onExit, hi, setHi }) {
 }
 
 // ===== Multiplayer setup (create/join) =====
-function MPSetup({ mode, onSuccess, onCancel }) {
+function MPSetup({ mode, onSuccess, onCancel, country }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(null);
   const [code, setCode] = useState("");
@@ -615,9 +621,10 @@ function MPSetup({ mode, onSuccess, onCancel }) {
     }
     setBusy(true); setError("");
     try {
+      const payload = { name: name.trim(), avatar, country: country?.code || null };
       const r = mode === "create"
-        ? await window.MP.createRoom({ name: name.trim(), avatar })
-        : await window.MP.joinRoom(code, { name: name.trim(), avatar });
+        ? await window.MP.createRoom(payload)
+        : await window.MP.joinRoom(code, payload);
       onSuccess(r.code, r.playerId);
     } catch (e) {
       setError(e.message || "حدث خطأ");
@@ -695,7 +702,10 @@ function Lobby({ room, code, playerId, onLeave }) {
             <div key={p.id} className={`lobby-player ${p.id === playerId ? "is-self" : ""}`}>
               <div className="lobby-av">{AVATARS[p.avatar].emoji}</div>
               <div className="lobby-info">
-                <div className="lobby-name">{p.name}{p.id === playerId ? " (أنت)" : ""}</div>
+                <div className="lobby-name">
+                  {p.country && <span title={window.arabicCountryName?.(p.country)} style={{ marginLeft: 4 }}>{window.codeToFlag?.(p.country)}</span>}
+                  {p.name}{p.id === playerId ? " (أنت)" : ""}
+                </div>
                 {p.isHost && <div className="lobby-host">👑 مضيف</div>}
               </div>
             </div>
@@ -722,7 +732,10 @@ function MPLiveBoard({ players, myId }) {
         <div key={p.id} className={`mp-board-row ${p.id === myId ? "is-self" : ""}`}>
           <div className="mp-board-rank">#{i + 1}</div>
           <div className="mp-board-av">{AVATARS[p.avatar].emoji}</div>
-          <div className="mp-board-name">{p.name}{p.id === myId ? " (أنت)" : ""}</div>
+          <div className="mp-board-name">
+            {p.country && <span style={{ marginLeft: 4 }}>{window.codeToFlag?.(p.country)}</span>}
+            {p.name}{p.id === myId ? " (أنت)" : ""}
+          </div>
           <div className="mp-board-score">{p.score || 0}</div>
         </div>
       ))}
@@ -928,19 +941,19 @@ function MPEnd({ room, code, playerId, onLeave }) {
           <div className="podium-cell silver">
             <div className="rank">2</div>
             <div className="podium-av">{AVATARS[top3[1].avatar].emoji}</div>
-            <div className="podium-name">{top3[1].name}</div>
+            <div className="podium-name">{top3[1].country && <span style={{marginLeft:4}}>{window.codeToFlag?.(top3[1].country)}</span>}{top3[1].name}</div>
             <div className="podium-score">{top3[1].score || 0}</div>
           </div>
           <div className="podium-cell gold">
             <div className="rank">1</div>
             <div className="podium-av">{AVATARS[top3[0].avatar].emoji}</div>
-            <div className="podium-name">{top3[0].name}</div>
+            <div className="podium-name">{top3[0].country && <span style={{marginLeft:4}}>{window.codeToFlag?.(top3[0].country)}</span>}{top3[0].name}</div>
             <div className="podium-score">{top3[0].score || 0}</div>
           </div>
           <div className="podium-cell bronze">
             <div className="rank">3</div>
             <div className="podium-av">{AVATARS[top3[2].avatar].emoji}</div>
-            <div className="podium-name">{top3[2].name}</div>
+            <div className="podium-name">{top3[2].country && <span style={{marginLeft:4}}>{window.codeToFlag?.(top3[2].country)}</span>}{top3[2].name}</div>
             <div className="podium-score">{top3[2].score || 0}</div>
           </div>
         </div>
@@ -952,7 +965,7 @@ function MPEnd({ room, code, playerId, onLeave }) {
             <div key={p.id} className={`lb-row ${p.id === playerId ? "is-self" : ""}`}>
               <div className="lb-rank">#{i + 1}</div>
               <div className="lb-av">{AVATARS[p.avatar].emoji}</div>
-              <div><div className="lb-name">{p.name}</div></div>
+              <div><div className="lb-name">{p.country && <span style={{marginLeft:4}}>{window.codeToFlag?.(p.country)}</span>}{p.name}</div></div>
               <div></div>
               <div className="lb-score">{p.score || 0}</div>
             </div>
@@ -966,7 +979,7 @@ function MPEnd({ room, code, playerId, onLeave }) {
             <div key={p.id} className={`lb-row ${p.id === playerId ? "is-self" : ""}`}>
               <div className="lb-rank">#{i + 4}</div>
               <div className="lb-av">{AVATARS[p.avatar].emoji}</div>
-              <div><div className="lb-name">{p.name}</div></div>
+              <div><div className="lb-name">{p.country && <span style={{marginLeft:4}}>{window.codeToFlag?.(p.country)}</span>}{p.name}</div></div>
               <div></div>
               <div className="lb-score">{p.score || 0}</div>
             </div>
@@ -1040,6 +1053,13 @@ function App() {
   const [questionCount, setQuestionCount] = useState((window.QUESTIONS_BANK || []).length);
   // Bump this whenever the seen-set changes so HomeMenu recomputes the remaining count.
   const [seenSignal, setSeenSignal] = useState(0);
+  // Auto-detected from the player's IP via geo.js. null until resolved/failed.
+  const [country, setCountry] = useState(null);
+
+  useEffect(() => {
+    if (typeof window.detectCountry !== "function") return;
+    window.detectCountry().then((c) => { if (c) setCountry(c); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", tweaks.theme);
@@ -1117,14 +1137,15 @@ function App() {
             onGenerate={handleGenerate}
             generating={generating}
             generateError={generateError}
+            country={country}
           />
         )}
         {route.name === "sp" && <SinglePlayerGame onExit={goHome} hi={hi} setHi={setHi} />}
         {route.name === "mp-create" && (
-          <MPSetup mode="create" onSuccess={(code, playerId) => setRoute({ name: "mp-room", code, playerId })} onCancel={goHome} />
+          <MPSetup mode="create" country={country} onSuccess={(code, playerId) => setRoute({ name: "mp-room", code, playerId })} onCancel={goHome} />
         )}
         {route.name === "mp-join" && (
-          <MPSetup mode="join" onSuccess={(code, playerId) => setRoute({ name: "mp-room", code, playerId })} onCancel={goHome} />
+          <MPSetup mode="join" country={country} onSuccess={(code, playerId) => setRoute({ name: "mp-room", code, playerId })} onCancel={goHome} />
         )}
         {route.name === "mp-room" && (
           <MultiplayerRoom code={route.code} playerId={route.playerId} onExit={goHome} />

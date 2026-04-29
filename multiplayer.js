@@ -20,7 +20,7 @@
     return "p_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
   }
 
-  async function createRoom({ name, avatar }) {
+  async function createRoom({ name, avatar, country }) {
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = newRoomCode();
       const playerId = newPlayerId();
@@ -36,6 +36,7 @@
         players: {
           [playerId]: {
             name, avatar,
+            country: country || null,
             score: 0, correctCount: 0, streak: 0,
             isHost: true,
             joinedAt: sv.TIMESTAMP,
@@ -48,7 +49,7 @@
     throw new Error("تعذّر إنشاء غرفة، حاول مجددًا");
   }
 
-  async function joinRoom(rawCode, { name, avatar }) {
+  async function joinRoom(rawCode, { name, avatar, country }) {
     const code = (rawCode || "").trim().toUpperCase();
     if (code.length !== 4) throw new Error("رمز الغرفة يجب أن يكون 4 أحرف");
     const roomRef = db.ref("rooms/" + code);
@@ -59,6 +60,7 @@
     const playerId = newPlayerId();
     await roomRef.child("players/" + playerId).set({
       name, avatar,
+      country: country || null,
       score: 0, correctCount: 0, streak: 0,
       isHost: false,
       joinedAt: sv.TIMESTAMP,
