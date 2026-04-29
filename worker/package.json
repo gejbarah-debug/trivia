@@ -1,0 +1,14 @@
+{
+  "name": "trivia-questions-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker that generates fresh Arabic trivia questions via Claude.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put ANTHROPIC_API_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

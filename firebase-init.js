@@ -1,3 +1,8 @@
+// URL of the Cloudflare Worker that generates fresh trivia questions.
+// Replace with your deployed worker URL after running `wrangler deploy`.
+// Set to "" to disable LLM-generated questions (game falls back to static pool).
+window.TRIVIA_WORKER_URL = "";
+
 // Firebase initialization. Config below is public (Firebase web config is meant
 // to be exposed; security comes from database rules).
 (function () {

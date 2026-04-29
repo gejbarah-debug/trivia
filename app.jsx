@@ -17,6 +17,8 @@ const shuffle = (arr) => {
 
 // ===== Seen-question tracking (per device, persists across sessions) =====
 const SEEN_KEY = "trivia_seen_ids";
+const GEN_KEY = "trivia_generated_questions";
+const GEN_MAX = 200; // cap stored generated questions per device
 
 const getSeenIds = () => {
   try {
@@ -24,6 +26,53 @@ const getSeenIds = () => {
     return new Set(raw ? JSON.parse(raw) : []);
   } catch { return new Set(); }
 };
+
+// Load previously generated questions and merge them into window.QUESTIONS_BANK.
+const loadGeneratedQuestions = () => {
+  try {
+    const raw = localStorage.getItem(GEN_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+};
+
+const saveGeneratedQuestions = (qs) => {
+  try {
+    const trimmed = qs.slice(-GEN_MAX);
+    localStorage.setItem(GEN_KEY, JSON.stringify(trimmed));
+  } catch {}
+};
+
+// Fetch fresh questions from the deployed Cloudflare Worker.
+async function fetchGeneratedQuestions(count = 16) {
+  const url = window.TRIVIA_WORKER_URL;
+  if (!url) throw new Error("worker not configured");
+  const bank = window.QUESTIONS_BANK || [];
+  // Send recent question texts so the model avoids semantic duplicates
+  const exclude = bank.slice(-60).map((q) => q.question).filter(Boolean);
+  const res = await fetch(url.replace(/\/$/, "") + "/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ count, exclude }),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error("worker " + res.status + ": " + err.slice(0, 200));
+  }
+  const data = await res.json();
+  if (!Array.isArray(data?.questions) || data.questions.length === 0) {
+    throw new Error("no questions returned");
+  }
+  return data.questions;
+}
+
+// Add fresh generated questions to the in-memory bank + persist.
+function appendGeneratedQuestions(newQs) {
+  const existing = loadGeneratedQuestions();
+  const merged = [...existing, ...newQs];
+  saveGeneratedQuestions(merged);
+  window.QUESTIONS_BANK = [...(window.QUESTIONS_BANK || []), ...newQs];
+  return newQs.length;
+}
 
 const saveSeenIds = (set) => {
   try { localStorage.setItem(SEEN_KEY, JSON.stringify([...set])); } catch {}
@@ -101,7 +150,7 @@ function TopBar({ theme, onToggleTheme, screen, onHome }) {
 }
 
 // ===== HomeMenu (mode picker) =====
-function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal }) {
+function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal, onGenerate, generating, generateError }) {
   // Re-compute remaining whenever totalQuestions or seenSignal changes.
   const remaining = useMemo(() => {
     const bank = window.QUESTIONS_BANK || [];
@@ -144,10 +193,18 @@ function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal }) {
         <span className="renew-pill">
           🆕 <b>{remaining}</b> سؤال جديد متبقي من أصل <b>{totalQuestions}</b>
         </span>
+        {window.TRIVIA_WORKER_URL && (
+          <button className="renew-reset" onClick={onGenerate} disabled={generating}>
+            {generating ? "⏳ جارٍ التوليد..." : "✨ أسئلة جديدة من Claude"}
+          </button>
+        )}
         <button className="renew-reset" onClick={onResetSeen}>
           ↻ إعادة تعيين
         </button>
       </div>
+      {generateError && (
+        <div className="error-msg" style={{ maxWidth: 520, margin: "0 auto" }}>{generateError}</div>
+      )}
 
       {hi > 0 && (
         <div style={{ textAlign: "center", color: "var(--c-ink-soft)", fontWeight: 700, fontSize: 14 }}>
@@ -945,9 +1002,18 @@ function App() {
   }, [tweaks.theme]);
 
   useEffect(() => {
-    if (typeof window.loadQuestions === "function") {
-      window.loadQuestions().then((n) => setQuestionCount(n));
-    }
+    (async () => {
+      let n = (window.QUESTIONS_BANK || []).length;
+      if (typeof window.loadQuestions === "function") {
+        n = await window.loadQuestions();
+      }
+      // Merge previously-generated questions from localStorage
+      const generated = loadGeneratedQuestions();
+      if (generated.length > 0) {
+        window.QUESTIONS_BANK = [...(window.QUESTIONS_BANK || []), ...generated];
+      }
+      setQuestionCount((window.QUESTIONS_BANK || []).length);
+    })();
   }, []);
 
   // When the route returns to home, recompute remaining (player likely just played a round).
@@ -958,6 +1024,25 @@ function App() {
   function handleResetSeen() {
     resetSeen();
     setSeenSignal((s) => s + 1);
+  }
+
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+
+  async function handleGenerate() {
+    if (generating) return;
+    setGenerating(true);
+    setGenerateError("");
+    try {
+      const fresh = await fetchGeneratedQuestions(16);
+      appendGeneratedQuestions(fresh);
+      setQuestionCount((window.QUESTIONS_BANK || []).length);
+      setSeenSignal((s) => s + 1);
+    } catch (e) {
+      setGenerateError("تعذّر توليد أسئلة جديدة: " + (e?.message || "خطأ"));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function pickMode(mode) {
@@ -985,6 +1070,9 @@ function App() {
             totalQuestions={questionCount}
             seenSignal={seenSignal}
             onResetSeen={handleResetSeen}
+            onGenerate={handleGenerate}
+            generating={generating}
+            generateError={generateError}
           />
         )}
         {route.name === "sp" && <SinglePlayerGame onExit={goHome} hi={hi} setHi={setHi} />}

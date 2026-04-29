@@ -1,0 +1,6 @@
+name = "trivia-questions"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+
+# Set the secret with: wrangler secret put ANTHROPIC_API_KEY
+# Do NOT commit the key to this file or to git.
