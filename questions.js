@@ -1,14 +1,14 @@
 // Small fallback question bank used if questions.json fails to load.
 // The full bank lives in questions.json (the public API endpoint).
 window.QUESTIONS_BANK = [
-  { category: "علوم", question: "ما أكبر كوكب في المجموعة الشمسية؟", options: ["زحل", "نبتون", "المشتري", "أورانوس"], correct: 2 },
-  { category: "علوم", question: "ما الرمز الكيميائي للذهب؟", options: ["Go", "Gd", "Au", "Ag"], correct: 2 },
-  { category: "جغرافيا", question: "ما أطول نهر في العالم؟", options: ["النيل", "الأمازون", "اليانغتسي", "المسيسيبي"], correct: 0 },
-  { category: "جغرافيا", question: "ما عاصمة اليابان؟", options: ["كيوتو", "أوساكا", "طوكيو", "سيول"], correct: 2 },
-  { category: "فن وثقافة", question: "ما اللوحة الأشهر للفنان دافنشي؟", options: ["الليلة المرصعة", "الموناليزا", "الصرخة", "العشاء الأخير"], correct: 1 },
-  { category: "فن وثقافة", question: "بلقب «أمير الشعراء» يُعرف:", options: ["حافظ إبراهيم", "أحمد شوقي", "خليل مطران", "إيليا أبو ماضي"], correct: 1 },
-  { category: "تاريخ", question: "في أي سنة سقطت الأندلس؟", options: ["1453", "1492", "1517", "1571"], correct: 1 },
-  { category: "إسلاميات", question: "كم عدد سور القرآن الكريم؟", options: ["100", "110", "114", "120"], correct: 2 },
+  { id: 1, category: "علوم", question: "ما أكبر كوكب في المجموعة الشمسية؟", options: ["زحل", "نبتون", "المشتري", "أورانوس"], correct: 2 },
+  { id: 3, category: "علوم", question: "ما الرمز الكيميائي للذهب؟", options: ["Go", "Gd", "Au", "Ag"], correct: 2 },
+  { id: 21, category: "جغرافيا", question: "ما أطول نهر في العالم؟", options: ["النيل", "الأمازون", "اليانغتسي", "المسيسيبي"], correct: 0 },
+  { id: 28, category: "جغرافيا", question: "ما عاصمة اليابان؟", options: ["كيوتو", "أوساكا", "طوكيو", "سيول"], correct: 2 },
+  { id: 42, category: "فن وثقافة", question: "ما اللوحة الأشهر للفنان دافنشي؟", options: ["الليلة المرصعة", "الموناليزا", "الصرخة", "العشاء الأخير"], correct: 1 },
+  { id: 49, category: "فن وثقافة", question: "بلقب «أمير الشعراء» يُعرف:", options: ["حافظ إبراهيم", "أحمد شوقي", "خليل مطران", "إيليا أبو ماضي"], correct: 1 },
+  { id: 63, category: "تاريخ", question: "في أي سنة سقطت الأندلس؟", options: ["1453", "1492", "1517", "1571"], correct: 1 },
+  { id: 95, category: "إسلاميات", question: "كم عدد سور القرآن الكريم؟", options: ["100", "110", "114", "120"], correct: 2 },
 ];
 
 // Load the full bank from the public API (questions.json). On success, replaces

@@ -15,11 +15,43 @@ const shuffle = (arr) => {
   return a;
 };
 
+// ===== Seen-question tracking (per device, persists across sessions) =====
+const SEEN_KEY = "trivia_seen_ids";
+
+const getSeenIds = () => {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+};
+
+const saveSeenIds = (set) => {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...set])); } catch {}
+};
+
+const markSeen = (ids) => {
+  const list = Array.isArray(ids) ? ids : [ids];
+  const set = getSeenIds();
+  list.forEach((id) => { if (id != null) set.add(id); });
+  saveSeenIds(set);
+  return set;
+};
+
+const resetSeen = () => { try { localStorage.removeItem(SEEN_KEY); } catch {} };
+
 const buildQuizPool = (count = 8) => {
   const bank = window.QUESTIONS_BANK || [];
-  return shuffle(bank).slice(0, count).map((q) => {
+  const seen = getSeenIds();
+  let unseen = bank.filter((q) => q.id == null || !seen.has(q.id));
+  // Pool exhausted → reset seen, draw from full bank again
+  if (unseen.length < count) {
+    resetSeen();
+    unseen = bank;
+  }
+  return shuffle(unseen).slice(0, count).map((q) => {
     const idxs = shuffle([0, 1, 2, 3]);
     return {
+      id: q.id,
       category: q.category,
       question: q.question,
       options: idxs.map((i) => q.options[i]),
@@ -69,7 +101,14 @@ function TopBar({ theme, onToggleTheme, screen, onHome }) {
 }
 
 // ===== HomeMenu (mode picker) =====
-function HomeMenu({ onPick, hi }) {
+function HomeMenu({ onPick, hi, totalQuestions, onResetSeen, seenSignal }) {
+  // Re-compute remaining whenever totalQuestions or seenSignal changes.
+  const remaining = useMemo(() => {
+    const bank = window.QUESTIONS_BANK || [];
+    const seen = getSeenIds();
+    return bank.filter((q) => q.id == null || !seen.has(q.id)).length;
+  }, [totalQuestions, seenSignal]);
+
   return (
     <div className="home">
       <div className="home-hero">
@@ -98,6 +137,15 @@ function HomeMenu({ onPick, hi }) {
           <div className="mode-icon">🚪</div>
           <div className="mode-title">انضم بغرفة</div>
           <div className="mode-desc">باستخدام رمز</div>
+        </button>
+      </div>
+
+      <div className="renew-row">
+        <span className="renew-pill">
+          🆕 <b>{remaining}</b> سؤال جديد متبقي من أصل <b>{totalQuestions}</b>
+        </span>
+        <button className="renew-reset" onClick={onResetSeen}>
+          ↻ إعادة تعيين
         </button>
       </div>
 
@@ -412,6 +460,7 @@ function SinglePlayerGame({ onExit, hi, setHi }) {
   function handleAnswer(pickIdx) {
     if (locked) return;
     const q = questions[qIndex];
+    if (q?.id != null) markSeen(q.id);
     const correct = pickIdx === q.correct;
     const timeBonus = correct ? Math.max(0, timer * 10) : 0;
     const base = correct ? 50 : 0;
@@ -652,6 +701,14 @@ function MPGame({ room, code, playerId, onLeave }) {
     }
   }, [qIndex, total, me.isHost, room.meta.state, code]);
 
+  // Mark currently-shown question as seen on this device.
+  useEffect(() => {
+    if (qIndex < total) {
+      const q = questions[qIndex];
+      if (q?.id != null) markSeen(q.id);
+    }
+  }, [qIndex, total]);
+
   if (qIndex >= total) {
     return (
       <div className="home">
@@ -880,6 +937,8 @@ function App() {
   const [route, setRoute] = useState({ name: "home" });
   const [hi, setHi] = useState(() => Number(localStorage.getItem("trivia_hi") || 0));
   const [questionCount, setQuestionCount] = useState((window.QUESTIONS_BANK || []).length);
+  // Bump this whenever the seen-set changes so HomeMenu recomputes the remaining count.
+  const [seenSignal, setSeenSignal] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", tweaks.theme);
@@ -890,6 +949,16 @@ function App() {
       window.loadQuestions().then((n) => setQuestionCount(n));
     }
   }, []);
+
+  // When the route returns to home, recompute remaining (player likely just played a round).
+  useEffect(() => {
+    if (route.name === "home") setSeenSignal((s) => s + 1);
+  }, [route.name]);
+
+  function handleResetSeen() {
+    resetSeen();
+    setSeenSignal((s) => s + 1);
+  }
 
   function pickMode(mode) {
     if (mode === "sp") setRoute({ name: "sp" });
@@ -909,7 +978,15 @@ function App() {
         onHome={goHome}
       />
       <div className="app-shell">
-        {route.name === "home" && <HomeMenu onPick={pickMode} hi={hi} />}
+        {route.name === "home" && (
+          <HomeMenu
+            onPick={pickMode}
+            hi={hi}
+            totalQuestions={questionCount}
+            seenSignal={seenSignal}
+            onResetSeen={handleResetSeen}
+          />
+        )}
         {route.name === "sp" && <SinglePlayerGame onExit={goHome} hi={hi} setHi={setHi} />}
         {route.name === "mp-create" && (
           <MPSetup mode="create" onSuccess={(code, playerId) => setRoute({ name: "mp-room", code, playerId })} onCancel={goHome} />
