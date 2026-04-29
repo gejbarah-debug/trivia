@@ -733,77 +733,36 @@ function MPLiveBoard({ players, myId }) {
 // ===== Multiplayer Game (synced quiz) =====
 function MPGame({ room, code, playerId, onLeave }) {
   const me = room.players[playerId];
-  const startedAt = room.meta.startedAt;
   const questions = room.questions || [];
   const total = questions.length || window.MP.TOTAL_QUESTIONS;
-  const Q_DUR = window.MP.QUESTION_DURATION_MS;
-  const ROUND = window.MP.ROUND_DURATION_MS;
 
-  // Block rendering until Firebase reports the server-time offset so every
-  // client computes `elapsed` against the same clock — otherwise a player
-  // whose offset hasn't loaded yet would see a timer value drifted by their
-  // local clock skew.
-  const [synced, setSynced] = useState(() => window.isServerTimeReady?.() === true);
+  // Per-player local pace — each player gets a fresh 15s for every question,
+  // counted from when THEY first see it. The room only synchronizes scores
+  // and the question pool; not the per-question countdown.
+  const [qIndex, setQIndex] = useState(0);
+  const [timer, setTimer] = useState(15);
+  const [phase, setPhase] = useState("question"); // question | result | done
+  const [lastPick, setLastPick] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
+
+  const handleAnswerRef = useRef(null);
+
+  // Local 1-second countdown during question phase. Times out → handleAnswer(-1).
   useEffect(() => {
-    if (synced) return;
-    let cancelled = false;
-    window.serverTimeReady?.then(() => { if (!cancelled) setSynced(true); });
-    return () => { cancelled = true; };
-  }, [synced]);
-
-  const [now, setNow] = useState(window.serverNow());
-  useEffect(() => {
-    if (!synced) return;
-    const t = setInterval(() => setNow(window.serverNow()), 250);
-    return () => clearInterval(t);
-  }, [synced]);
-
-  if (!synced || !startedAt) {
-    return (
-      <div className="home">
-        <div className="home-hero">
-          <h2 className="home-title" style={{ fontSize: "clamp(28px,5vw,44px)" }}>جارٍ مزامنة المؤقّت...</h2>
-        </div>
-      </div>
-    );
-  }
-
-  const elapsed = startedAt ? Math.max(0, now - startedAt) : 0;
-  const qIndex = Math.floor(elapsed / ROUND);
-  const inRound = elapsed % ROUND;
-  const phase = inRound < Q_DUR ? "question" : "result";
-  const timer = phase === "question" ? Math.max(0, Math.ceil((Q_DUR - inRound) / 1000)) : 0;
-
-  // Host transitions room to "finished" when game's over.
-  useEffect(() => {
-    if (qIndex >= total && me.isHost && room.meta.state === "playing") {
-      window.MP.endRoom(code).catch(() => {});
-    }
-  }, [qIndex, total, me.isHost, room.meta.state, code]);
-
-  // Mark currently-shown question as seen on this device.
-  useEffect(() => {
-    if (qIndex < total) {
-      const q = questions[qIndex];
-      if (q?.id != null) markSeen(q.id);
-    }
-  }, [qIndex, total]);
-
-  if (qIndex >= total) {
-    return (
-      <div className="home">
-        <div className="home-hero"><h2 className="home-title" style={{fontSize:"clamp(32px,5vw,48px)"}}>احتساب النتائج...</h2></div>
-      </div>
-    );
-  }
-
-  const question = questions[qIndex];
-  const myAnswer = me.answers?.[qIndex];
+    if (phase !== "question") return;
+    if (timer <= 0) { handleAnswerRef.current?.(-1); return; }
+    const t = setTimeout(() => setTimer((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timer, phase]);
 
   async function handleAnswer(pickIdx) {
-    if (myAnswer) return;
     if (phase !== "question") return;
-    const correct = pickIdx === question.correct;
+    const q = questions[qIndex];
+    if (!q) return;
+
+    if (q.id != null) markSeen(q.id);
+
+    const correct = pickIdx === q.correct;
     const timeBonus = correct ? Math.max(0, timer * 10) : 0;
     const base = correct ? 50 : 0;
     const myStreak = me.streak || 0;
@@ -812,6 +771,11 @@ function MPGame({ room, code, playerId, onLeave }) {
     const newStreak = correct ? myStreak + 1 : 0;
     const newScore = (me.score || 0) + gained + timeBonus;
     const newCorrect = (me.correctCount || 0) + (correct ? 1 : 0);
+
+    setLastPick(pickIdx);
+    setLastResult({ correct, gained, timeBonus });
+    setPhase("result");
+
     try {
       await window.MP.submitAnswer(code, playerId, qIndex, {
         pickIdx, correct, gained, timeBonus,
@@ -820,13 +784,72 @@ function MPGame({ room, code, playerId, onLeave }) {
     } catch (e) {
       console.error("submitAnswer failed", e);
     }
+
+    setTimeout(() => {
+      const next = qIndex + 1;
+      if (next >= total) {
+        setPhase("done");
+        try { window.FB_DB.ref("rooms/" + code + "/players/" + playerId).update({ done: true }); } catch {}
+      } else {
+        setQIndex(next);
+        setTimer(15);
+        setLastPick(null);
+        setLastResult(null);
+        setPhase("question");
+      }
+    }, 2800);
+  }
+  handleAnswerRef.current = handleAnswer;
+
+  // Any player can trigger room-end once everyone has finished — this avoids
+  // the room being stuck if the host leaves before others finish.
+  useEffect(() => {
+    if (room.meta?.state !== "playing") return;
+    const ps = Object.values(room.players || {});
+    if (ps.length > 0 && ps.every((p) => p.done)) {
+      window.MP.endRoom(code).catch(() => {});
+    }
+  }, [room.players, room.meta?.state, code]);
+
+  const players = Object.entries(room.players || {})
+    .map(([id, p]) => ({ ...p, id }))
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+  const finishedCount = players.filter((p) => p.done).length;
+
+  if (phase === "done") {
+    return (
+      <div className="quiz">
+        <div className="quiz-hud">
+          <div className="hud-pill hud-score">
+            <span className="ico">⭐</span>
+            <span className="num">{me.score || 0}</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: "100%" }}></div>
+          </div>
+          <div className="hud-pill" title="رمز الغرفة"><span className="ico">🎮</span><span style={{fontFamily:"Cairo", fontWeight:900}}>{code}</span></div>
+        </div>
+        <MPLiveBoard players={players} myId={playerId} />
+        <div className="result-card" style={{ textAlign: "center" }}>
+          <div className="result-emoji">⏳</div>
+          <h2 className="result-headline" style={{ color: "var(--c-purple)" }}>أنهيت!</h2>
+          <p className="result-body">في انتظار باقي اللاعبين... ({finishedCount} / {players.length})</p>
+        </div>
+      </div>
+    );
+  }
+
+  const question = questions[qIndex];
+  if (!question) {
+    return (
+      <div className="home">
+        <div className="home-hero"><h2 className="home-title" style={{fontSize:"clamp(28px,5vw,44px)"}}>جارٍ التحميل...</h2></div>
+      </div>
+    );
   }
 
   const colors = ["p", "y", "t", "u"];
   const letters = ["أ", "ب", "ج", "د"];
-  const players = Object.entries(room.players || {})
-    .map(([id, p]) => ({ ...p, id }))
-    .sort((a, b) => (b.score || 0) - (a.score || 0));
 
   return (
     <div className="quiz">
@@ -855,15 +878,13 @@ function MPGame({ room, code, playerId, onLeave }) {
             let cls = "option-btn";
             if (phase === "result") {
               if (i === question.correct) cls += " is-correct";
-              else if (myAnswer && i === myAnswer.pickIdx && !myAnswer.correct) cls += " is-wrong";
+              else if (i === lastPick && !lastResult?.correct) cls += " is-wrong";
               else cls += " is-faded";
-            } else if (myAnswer && myAnswer.pickIdx === i) {
-              cls += " is-correct";
             }
             return (
               <button key={i} className={cls} data-color={colors[i]}
                 onClick={() => handleAnswer(i)}
-                disabled={phase !== "question" || !!myAnswer}>
+                disabled={phase !== "question"}>
                 <span className="option-letter">{letters[i]}</span>
                 <span>{opt}</span>
               </button>
@@ -872,8 +893,8 @@ function MPGame({ room, code, playerId, onLeave }) {
         </div>
         {phase === "result" && (
           <div className="mp-result-banner">
-            {myAnswer?.correct ? <>🎉 صحيح! +{(myAnswer.gained || 0) + (myAnswer.timeBonus || 0)} نقطة</>
-              : myAnswer ? <>❌ خاطئ. الإجابة: {question.options[question.correct]}</>
+            {lastResult?.correct ? <>🎉 صحيح! +{(lastResult.gained || 0) + (lastResult.timeBonus || 0)} نقطة</>
+              : lastPick != null ? <>❌ خاطئ. الإجابة: {question.options[question.correct]}</>
               : <>⏰ انتهى الوقت. الإجابة: {question.options[question.correct]}</>}
           </div>
         )}
