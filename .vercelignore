@@ -1,0 +1,6 @@
+worker/
+_design/
+.claude/
+.github/
+node_modules/
+.wrangler/
